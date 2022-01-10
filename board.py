@@ -5,37 +5,43 @@ class Tile:
     fg_colors = {0:"blue",1:"blue",2:"green",3:"red",4:"black",5:"yellow",6:"cyan",7:"green",8:"red"}
 
     def __init__(self, is_bomb:bool , tk_label , is_selected:bool):
-        self.tk_label = tk_label # an object of type tk_label
-        self.is_bomb = is_bomb
-        self.is_visible = False
-        self.is_flagged = False
-        self.is_selected = is_selected
-        self.touching_n = 0 # number of bombs this tile is touching
-        self.label = ""
-        self.bg_color = "grey90"
-        self.fg_color = "blue"
+        self.tk_label = tk_label # an object of type tk.Label 
+        # tk_label is of central importance, when I modify it, the player sees something different too
+        self.is_bomb = is_bomb # boolean variable, True if this tile is a bomb
+        self.is_visible = False # True if this tile is visible to the player
+        self.is_flagged = False # True if the player has flagged this tile, (flagged meaning they think it's a bomb)
+        self.is_selected = is_selected  # True means that the cursor is on this tile, if the tile is selected the background color of that tile will appear differently, this is so that the player can tell which tile they are currently on
+        self.touching_n = 0 # number of bombs this tile is touching, defaults to 0, gets modifed when `fill_neighbours` is called
+        self.label = "" # this is the text that will be displayed when the tile is revealed (/'detonated')  
+        self.bg_color = "grey90" # this is the background color of the tile
+        self.fg_color = "blue" # this is the color of the self.label text to be displayed when the tile is detonated
         if self.is_bomb:
-            self.bg_color = "grey90"
-            self.fg_color = "black"
-            self.label = "*"
+            self.fg_color = "black" # if the tile is a bomb, the foreground should be black
+            self.label = "*" # and the label will be a *
 
-    def __str__(self):
+    def __str__(self): # I used this for debugging purposes
         string_rep = "" + str(self.is_bomb) + " " + str(self.touching_n) + " " + self.label
-        return string_rep
+        return string_rep 
 
     def fill_neighbours(self,neighbours): # fills the neighbourse attribute
-        self.neighbours = neighbours # a list of tile objects, the neighbouring tiles
+        self.neighbours = neighbours # a list of Tile instances: the neighbouring tiles
+
+        # if the tile is not a bomb, count how many of it's neighbours are bombs, and set it's label appropriately
         if not self.is_bomb:
             for t in neighbours:
                 if t.is_bomb:
                     self.touching_n += 1
-            self.fg_color = Tile.fg_colors[self.touching_n]
-            if self.touching_n == 0:
-                self.label = ""
+            self.fg_color = Tile.fg_colors[self.touching_n] 
+            if self.touching_n == 0: 
+                self.label = "" 
             else: 
                 self.label = str(self.touching_n)
 
+    # This is a helper method, once you update a tile's attributes, call this function and it will update the tk_label of the tile appropriately. Calling this function is what will change what the user sees
     def update_tk_label(self):
+        # when a tile is selected, the background color is always white, this is how you know where your cursor is
+
+        # if the tile is visible to the player, do this, doesn't matter if it's flagged 
         if self.is_visible:
             if self.is_selected and not self.is_bomb:
                 self.tk_label["bg"] = "white"
@@ -43,6 +49,8 @@ class Tile:
                 self.tk_label["bg"] = self.bg_color
             self.tk_label["fg"] = self.fg_color
             self.tk_label["text"] = self.label
+
+        # if the tile is not visible to the player but it is flagged, display the flag and the light blue background
         elif self.is_flagged:
             if self.is_selected:
                 self.tk_label["bg"] = "white"
@@ -50,6 +58,8 @@ class Tile:
                 self.tk_label["bg"] = "light blue"
             self.tk_label["fg"] = "dark red"
             self.tk_label["text"] = "!"
+
+        # if the tile is not visible to the player, and not flagged, don't show any text and make it grey (or white if selected)
         elif self.is_selected:
             self.tk_label["bg"] = "white"
             self.tk_label["text"] = "" 
@@ -57,19 +67,18 @@ class Tile:
             self.tk_label["bg"] = "grey"
             self.tk_label["text"] = "" 
 
-        return 
+        return # this return statement is not necessary, it's just here for readability
 
 
     # when you hover over a tile you 'select' it
     def select(self):
+        # when a tile is selected, i.e. when the cursor is hovering over it, update it's is_selected attribute by setting it to True, then call the update_tk_label() function so that this change will be displayed to the player
         self.is_selected = True
         self.update_tk_label() 
         return 
 
     # when you move on to another tile you need to unselect it
     def unselect(self):
-        # if self.is_selected == False: 
-        #     raise Exception("Logic error")
         self.is_selected = False
         self.update_tk_label()
         return 
@@ -78,21 +87,20 @@ class Tile:
         if self.is_flagged == True: self.is_flagged = False
         else: self.is_flagged = True
         self.update_tk_label()
-        # note: you can toggle flag even if something is already exposed, it won't do anything
+        # note: you can toggle flag even if something is already exposed, it won't do anything that the user can see becuase if a tile is visible (is_visible==True) then whether or not it's flagged is of little importance
         return 
 
     def detonate(self):
         if self.is_flagged and self.is_visible == False and self.is_selected:
-            print("yay") # debug
-            return False , -1
-        
+            return False , -1 # the first arg returned tells you that it's not a bomb, the second argument is -1, this is kinda sloppy code, it's a patch to prevent the tile from being revealed in case the tile has alread been flagged, this ensures that if a tile is flagged you cannot detonate it and get a nasty surprise
+       
 
         elif self.is_bomb:
             self.bg_color = "red"
         self.is_visible = True
         self.update_tk_label()
         
-        return self.is_bomb , self.touching_n # return True if it is a bomb, also the n of neighbours touching
+        return self.is_bomb , self.touching_n # return True if it is a bomb, also the number of neighbours touching
 
     def reveal(self): # this method is called on every tile if a bomb is detonated
         self.is_visible = True
@@ -199,11 +207,13 @@ class Board:
 
         return 
 
+    # key press
     def flag_toggle(self):
         xc , yc = self.cursor
         self.tiles[xc][yc].flag_toggle()
         return 
 
+    # key press
     def detonate_tile(self , tile = None):
         if tile == None:
             xc,yc = self.cursor
